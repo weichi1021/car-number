@@ -1,65 +1,51 @@
-# 車牌查詢自動化專案 — 使用說明（更新）
+# 車牌查詢自動化專案 — Copilot / 開發者 指令與守則
 
-本文件針對專案程式碼做補充與執行說明，方便開發與執行自動化查詢流程。
+目的
+------
+此文件提供給 AI 生成工具（例如 Copilot）與專案開發者使用的操作與編輯守則，讓自動化建議與人工修改保持一致、可驗證且安全。
 
-主要檔案與函式
-- 車牌產生器：[`generatePlateNumbers`](src/utils/generatePlateNumbers.ts) ([src/utils/generatePlateNumbers.ts](src/utils/generatePlateNumbers.ts))
-- 驗證碼辨識（可選自動化）：[`recognizeCaptcha`](src/utils/recognizeCaptcha.ts) ([src/utils/recognizeCaptcha.ts](src/utils/recognizeCaptcha.ts))
-- LINE 推播：[`sendLineNotify`](src/utils/lineNotify.ts)（以及 `ReplyMessage`, `BroadcastMsg`）([src/utils/lineNotify.ts](src/utils/lineNotify.ts))
-- 定期抓最新車牌：主程式 [src/fetchLatestPlates.ts](src/fetchLatestPlates.ts)（以實作為主，預設要求人工輸入 captcha）
-- 批次查詢車牌並儲存結果：[`queryPlate`](src/queryPlate.ts)（可替換為使用 [`generatePlateNumbers`](src/utils/generatePlateNumbers.ts) 產生的清單）([src/queryPlate.ts](src/queryPlate.ts))
-- 範例爬蟲： [src/examples/basic-scraper.ts](src/examples/basic-scraper.ts)
-- 專案設定： [package.json](package.json), [tsconfig.json](tsconfig.json), [.env.example](.env.example)
+適用範圍
+------
+- 可修改範圍：`src/`、`src/utils/`、`src/examples/`、`scripts/`（新增工具腳本）。
+- 受限制（請勿自動修改）：`.env`、`.env.example`、`package.json`（除非明確要求）、`README.md`（由 maintainers 決定是否更新）以及任何含機密的檔案。
 
-快速執行
-1. 安裝依賴：
-   ```sh
-   npm install
-   ```
-2. 設定環境變數（可選，用於 LINE 推播）：
-   - 複製範例：`cp .env.example .env`
-   - 編輯 `.env` 填入 `CHANNEL_ACCESS_TOKEN`（參考 [.env.example](.env.example)）
-3. 執行抓最新車牌（會截圖 captcha，預設需手動在終端輸入）：
-   ```sh
-   npx ts-node src/fetchLatestPlates.ts
-   ```
-   相關實作位於 [src/fetchLatestPlates.ts](src/fetchLatestPlates.ts)。
+基本守則（給 AI 與貢獻者）
+------
+1. 變更要小且可驗證：優先做小幅度的修改，並附上測試或示範命令（至少一個 happy-path）。
+2. 不要引入秘密：不得在程式碼中寫入 API keys、token 或其他敏感資訊。
+3. 保留原有程式風格：請遵守現有 TypeScript 風格（不要整段 reformat 檔案，除非需要）並通過現有 lint/type 檢查（若有）。
+4. 網路請求要有禮貌：任何對網站的自動化請求都必須包含 rate-limit（delay）、錯誤重試與退避機制，且在 PR 中說明預期流量與失敗處理。
+5. 修改爬蟲/查詢程式時，請在 PR 說明中列出測試方法與可重現流程。
 
-批次查詢流程（離線/離峰）
-- 若要批次查詢大量車牌，請使用 [src/queryPlate.ts](src/queryPlate.ts)：
-  - 範例中暫時使用手動 plate 清單；可改回使用 [`generatePlateNumbers`](src/utils/generatePlateNumbers.ts) 產生完整清單。
-  - 查詢結果會分檔寫入 `results_*.json` 與 `notfound_*.json`（程式內寫入邏輯在 [src/queryPlate.ts](src/queryPlate.ts)）。
-  - 範例輸出資料夾/檔案可參考 repo 根目錄中的 `result/` 與 `notfound/`。
+CAPTCHA 與自動辨識政策
+------
+- 預設流程：`src/fetchLatestPlates.ts` 為人工輸入 CAPTCHA（截圖後手動輸入）。
+- 若提案要啟用 `recognizeCaptcha` 自動辨識，PR 必須包含：
+  - 甄別辨識準確率的實驗結果（範例圖片與成功率）
+  - 會怎麼處理錯誤辨識（例如辨識失敗 fallback 到人工）
+  - 合法性聲明：確認該網站政策允許此種自動化行為。
 
-驗證碼自動化說明
-- 專案提供簡單的 OCR 前處理與辨識實作：[`recognizeCaptcha`](src/utils/recognizeCaptcha.ts)。
-- 預設流程（[src/fetchLatestPlates.ts](src/fetchLatestPlates.ts)）為「截圖 captcha 並要求人工輸入」，因為網站反爬或辨識準確度可能不穩定。
-- 若要改成自動辨識：
-  1. 確認已安裝 `tesseract.js` 與 `jimp`（已列於 [package.json](package.json)）。
-  2. 在 [src/fetchLatestPlates.ts](src/fetchLatestPlates.ts) 中啟用：
-     - 將註解的 `recognizeCaptcha('captcha_raw.jpg', 'captcha.jpg')` 取消註解並調整流程。
-  3. 注意：自動化辨識可能需下載或配置 Tesseract 訓練檔（若需更高準確度，請評估訓練資料與預處理參數）。
+PR / Commit 要求
+------
+- PR 標題需描述變更目的（例如：`feat: 支援 queryPlate --input`）。
+- 若是功能性變更，請附上示範指令與輸出範例，並在可能的情況下加一個小測試或 sample output。  
+- 重要行為（例如改 rate limit、加上自動辨識）需在 PR 描述標明風險與防護措施。
 
-LINE 推播
-- 推播函式在 [src/utils/lineNotify.ts](src/utils/lineNotify.ts)，呼叫 [`sendLineNotify`](src/utils/lineNotify.ts) 即可發送文字訊息。
-- 若要測試：執行 [src/testLineNotify.ts](src/testLineNotify.ts)（需在 .env 設定 `CHANNEL_ACCESS_TOKEN`）。
+範例 prompt（給 AI）
+------
+當你要請 Copilot 生成/修改 `src/queryPlate.ts` 時，可帶上：
 
-注意事項與建議
-- 請遵守網站使用條款與法規，避免過度頻繁請求導致封鎖或影響服務。
-- 建議將查詢速度放慢（在查詢迴圈加入適當 delay），並在必要時加入重試與退避機制（exponential backoff）。
-- 記錄與輸出：查詢結果已由 [src/queryPlate.ts](src/queryPlate.ts) 分檔儲存，請留意磁碟空間與檔案上限。
-- 開發時可參考範例 [src/examples/basic-scraper.ts](src/examples/basic-scraper.ts) 來設定 headless、viewport 等參數。
+"請在 `src/queryPlate.ts` 中加入讀取 `--input` 參數的功能（可接受 JSON 檔案或純文字檔），並在查詢迴圈加入一個 `delayMs` 參數與最多 3 次重試邏輯；不要更改其他檔案，記得加上簡單的 log 輸出與使用說明。"
 
-建置與開發
-- 編譯 TypeScript：
-  ```sh
-  npm run build
-  ```
-  使用設定：[tsconfig.json](tsconfig.json)
-- 以範例執行：
-  ```sh
-  npm run scrape:example
-  ```
-  指令定義位於 [package.json](package.json)。
+常見情境處理
+------
+- 日誌與輸出：請將查詢結果寫到 `result/`（找到）與 `notfound/`（未找到），並在 PR 中標示檔名模式（例如 `results_*.json`、`notfound_*.json`）。
+- 效能與磁碟：大量查詢會產生大量檔案，建議實作檔案分批或壓縮策略。
 
-如需針對某個檔案或功能進一步修改（例如自動化 CAPTCHA、增加重試機制、或定期排程實作），請指定目標檔案（例如 [src/fetchLatestPlates.ts](src/fetchLatestPlates.ts) 或 [src/queryPlate.ts](src/queryPlate.ts)），我會提供對應修正建議與程式碼範例。
+聯絡與維護
+------
+如需例外許可（例如修改 `.env.example` 或 `package.json`），請在 PR 中標註 maintainer 並取得批准。
+
+---
+
+此檔案為機器與維護者協作的規範；若有專案流程變動，請同步更新本檔以維持一致性。
