@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import { recognizeCaptcha } from './utils/recognizeCaptcha';
+import { sendLineNotify } from './utils/lineNotify';
 
 async function fetchLatestPlates() {
   const url = 'https://www.mvdis.gov.tw/m3-emv-plate/webpickno/queryPickNo#';
@@ -149,20 +151,32 @@ async function fetchLatestPlates() {
         }
         fs.writeFileSync(filePath, JSON.stringify(plateList, null, 2), 'utf-8');
         console.log('最新車牌號:', lastPlate, '時間:', now);
+
+        // 組合要發送的通知內容
+        let notifyMsg = `最新車牌號: ${lastPlate} 時間: ${now}`;
+
         // === 計算距離 CAT-2533 還有多少個 ===
         try {
           const notfoundPlates = JSON.parse(fs.readFileSync('notfound/notfound-all.json', 'utf-8'));
           // 找到最新車牌在 notfound/notfound-all.json 的 index
           const idx = notfoundPlates.indexOf(lastPlate);
           const targetIdx = notfoundPlates.indexOf('CAT-2533');
-          if (idx !== -1) {
+          if (idx !== -1 && targetIdx !== -1) {
             const remain = targetIdx - idx;
             console.log(`已出 ${idx + 1} 個，距離 CAT-2533 還有 ${remain} 個`);
+            notifyMsg += `，已出 ${idx + 1} 個，距離 CAT-2533 還有 ${remain} 個`;
           } else {
             console.log('最新車牌號不在有效清單內，無法計算距離');
           }
         } catch (e) {
           console.log('計算距離失敗:', e);
+        }
+
+        // 發送 LINE Notify 推播（若有設定 token）
+        try {
+          await sendLineNotify(notifyMsg);
+        } catch (e) {
+          console.log('LINE 推播失敗:', e);
         }
       } else {
         console.log('車牌號未變動', '時間:', now);
@@ -172,10 +186,12 @@ async function fetchLatestPlates() {
     }
   }
 
+  // sendLineNotify 已移到 utils/lineNotify.ts，從該模組匯入使用
+
   // 先執行一次
   await fetchAndSavePlate();
   // 每 10 秒執行一次
-  setInterval(fetchAndSavePlate, 90000);
+  setInterval(fetchAndSavePlate, 150000);
 }
 
 fetchLatestPlates().catch(err => {
