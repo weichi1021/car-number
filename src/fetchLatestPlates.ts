@@ -173,11 +173,11 @@ async function fetchLatestPlates() {
         }
 
         // 發送 LINE Notify 推播（若有設定 token）
-        try {
-          await sendLineNotify(notifyMsg);
-        } catch (e) {
-          console.log('LINE 推播失敗:', e);
-        }
+        // try {
+        //   await sendLineNotify(notifyMsg);
+        // } catch (e) {
+        //   console.log('LINE 推播失敗:', e);
+        // }
       } else {
         console.log('車牌號未變動', '時間:', now);
       }
@@ -185,8 +185,6 @@ async function fetchLatestPlates() {
       console.log('未找到車牌號');
     }
   }
-
-  // sendLineNotify 已移到 utils/lineNotify.ts，從該模組匯入使用
 
   // 先執行一次
   await fetchAndSavePlate();
