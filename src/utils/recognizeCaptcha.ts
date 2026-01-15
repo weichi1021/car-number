@@ -1,74 +1,94 @@
-import Tesseract from 'tesseract.js';
+import * as fs from 'fs';
+import * as https from 'https';
+import * as http from 'http';
+import FormData from 'form-data';
 
 /**
- * 前處理驗證碼圖片並自動辨識
+ * OCR API 回傳格式
+ */
+interface OcrResponse {
+  ocr_text: string;
+  min_confidence: number;
+  skipped: boolean;
+}
+
+/**
+ * 呼叫 OCR API 辨識驗證碼
  * @param inputPath 驗證碼原始圖片路徑
- * @param outputPath 處理後圖片路徑
+ * @param outputPath 處理後圖片路徑（保留參數以保持介面一致性，實際未使用）
  * @returns 辨識後的驗證碼字串
+ * @throws 當 OCR API 回傳結果不可信或發生錯誤時拋出例外
  */
 export async function recognizeCaptcha(inputPath: string, outputPath: string): Promise<string> {
+  const OCR_API_URL = process.env.OCR_API_URL || 'http://127.0.0.1:2533/ocr';
+  const MIN_CONFIDENCE_THRESHOLD = parseFloat(process.env.OCR_MIN_CONFIDENCE || '0.7');
+  const EXPECTED_LENGTH = 4; // 驗證碼固定為 4 個字元
 
-  // 圖片前處理：簡化處理避免過度失真
-  const { Jimp } = require('jimp');
-  let image = await Jimp.read(inputPath);
+  try {
+    // 準備 FormData
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(inputPath));
 
-  // 1. 放大圖片 2 倍（適度提升辨識精度）
-  image = image.scale(3);
+    // 使用原生 http/https 模組呼叫 API
+    const data = await new Promise<OcrResponse>((resolve, reject) => {
+      const url = new URL(OCR_API_URL);
+      const protocol = url.protocol === 'https:' ? https : http;
 
-  // 2. 轉灰階
-  image = image.greyscale();
+      const req = protocol.request(
+        {
+          hostname: url.hostname,
+          port: url.port,
+          path: url.pathname,
+          method: 'POST',
+          headers: formData.getHeaders(),
+        },
+        (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => {
+            if (res.statusCode !== 200) {
+              reject(new Error(`OCR API 錯誤: HTTP ${res.statusCode}`));
+            } else {
+              try {
+                resolve(JSON.parse(body));
+              } catch (e) {
+                reject(new Error('OCR API 回應格式錯誤'));
+              }
+            }
+          });
+        }
+      );
 
-  // 3. 增強對比
-  image = image.contrast(0.3);
+      req.on('error', reject);
+      formData.pipe(req);
+    });
 
-  // 4. 正規化
-  image = image.normalize();
+    console.log(`OCR 結果: ${data.ocr_text}, 信心分數: ${data.min_confidence}, 跳過: ${data.skipped}`);
 
-  // 5. 去除干擾線（8 鄰域像素過濾法，偵測較粗線條）
-  const w = image.bitmap.width;
-  const h = image.bitmap.height;
-  // 只針對灰階圖像，將疑似粗線（深色且周圍多為亮色）設為白色
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const idx = (w * y + x) << 2;
-      const thisPixel = image.bitmap.data[idx];
-      // 取得 8 鄰域像素灰階值
-      const neighbors = [
-        image.bitmap.data[((w * (y - 1) + x) << 2)],     // 上
-        image.bitmap.data[((w * (y + 1) + x) << 2)],     // 下
-        image.bitmap.data[((w * y + (x - 1)) << 2)],     // 左
-        image.bitmap.data[((w * y + (x + 1)) << 2)],     // 右
-        image.bitmap.data[((w * (y - 1) + (x - 1)) << 2)], // 左上
-        image.bitmap.data[((w * (y - 1) + (x + 1)) << 2)], // 右上
-        image.bitmap.data[((w * (y + 1) + (x - 1)) << 2)], // 左下
-        image.bitmap.data[((w * (y + 1) + (x + 1)) << 2)]  // 右下
-      ];
-      // 若該像素為深色（小於 120），且 8 鄰域有 4 個以上為亮色（大於 180），視為更粗干擾線
-      const brightCount = neighbors.filter(v => v > 200).length;
-      if (thisPixel < 50 && brightCount >= 4) {
-        // 設為白色
-        image.bitmap.data[idx] = 255;
-        image.bitmap.data[idx + 1] = 255;
-        image.bitmap.data[idx + 2] = 255;
-      }
+    // 檢查 1: 後端標記為 skipped
+    if (data.skipped) {
+      throw new Error(`OCR 結果不可信 (skipped=true)`);
     }
+
+    // 檢查 2: 信心分數低於自訂閾值
+    if (data.min_confidence < MIN_CONFIDENCE_THRESHOLD) {
+      throw new Error(`OCR 信心分數過低: ${data.min_confidence} < ${MIN_CONFIDENCE_THRESHOLD}`);
+    }
+
+    // 檢查 3: 固定字數檢查（驗證碼應為 4 個字元）
+    if (data.ocr_text.length !== EXPECTED_LENGTH) {
+      throw new Error(`OCR 結果長度錯誤: ${data.ocr_text.length} ≠ ${EXPECTED_LENGTH}`);
+    }
+
+    // 確保結果為大寫
+    const result = data.ocr_text.toUpperCase();
+
+    return result;
+
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`驗證碼辨識失敗: ${error.message}`);
+    }
+    throw error;
   }
-
-  await image.write(outputPath);
-
-  // 自動辨識（針對 4 位大寫驗證碼優化）
-  const { data: { text: rawText } } = await Tesseract.recognize(
-    outputPath,
-    'eng',
-    ({
-      logger: () => {},
-      config: [
-        'tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', // 只允許大寫
-        'tessedit_pageseg_mode=7' // 7 = 單行文字模式
-      ]
-    } as any)
-  );
-  // 只取前 4 個字元並轉大寫
-  const result = rawText.replace(/[^A-Z0-9]/g, '').trim().substring(0, 4);
-  return result;
 }

@@ -5,6 +5,16 @@ import errorList from '../result/errors_to_retry.json';
 import fs from 'fs';
 dotenv.config();
 
+function logMem(tag = '') {
+  const m = process.memoryUsage();
+  console.log('[mem]', tag, {
+    rss: `${Math.round(m.rss / 1024 / 1024)} MB`,
+    heapTotal: `${Math.round(m.heapTotal / 1024 / 1024)} MB`,
+    heapUsed: `${Math.round(m.heapUsed / 1024 / 1024)} MB`,
+    external: `${Math.round(m.external / 1024 / 1024)} MB`,
+  });
+}
+
 const TARGET_URL = 'https://www.mvdis.gov.tw/m3-emv-plate/bid/queryBid#gsc.tab=0';
 
 interface QueryResult {
@@ -41,6 +51,7 @@ async function queryPlate(plate: string, page: Page): Promise<QueryResult> {
 }
 
 async function main() {
+  logMem('queryPlate:main:start');
   // const plates = generatePlateNumbers();
   const plates = [
     'CAT-2533',
@@ -72,6 +83,7 @@ async function main() {
     const plate = plates[i];
     const result = await queryPlate(plate, page);
     console.log(result.plate, result.status, result.message || '');
+    if ((i + 1) % 10 === 0) logMem(`progress:${i + 1}`);
     const isNotFound = result.status === 'not found' || (result.message && result.message.includes('查無資料'));
     if (isNotFound) {
       // 只寫入 notfound_X.json
@@ -121,6 +133,7 @@ async function main() {
   }
 
   await browser.close();
+  logMem('queryPlate:browser-closed');
   console.log('查詢完成，所有結果已分批儲存。');
 }
 
