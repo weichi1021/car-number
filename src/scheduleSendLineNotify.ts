@@ -10,16 +10,16 @@ async function scheduleSendLineNotify() {
   // 找到最新車牌在 notfound/notfound-all.json 的 index
   const lastPlate = latestPlates[latestPlates.length - 1];
   const lastIndex = notfoundPlates.indexOf(lastPlate.latest);
-  const targetIdx = notfoundPlates.indexOf('CAT-2533');
+  const targetIdx = notfoundPlates.indexOf('CAT-8888');
   if (lastIndex !== -1 && targetIdx !== -1) {
     console.log(`目前最新: ${lastPlate.latest} (第 ${lastIndex + 1} 個)，時間: ${lastPlate.timestamp}`);
-    console.log(`目標: CAT-2533，距離目標剩餘: ${targetIdx - lastIndex} 個`);
+    console.log(`目標: CAT-8888，距離目標剩餘: ${targetIdx - lastIndex} 個`);
   } else {
     console.log('最新車牌號不在有效清單內，無法計算距離');
   }
 
   // 發送 LINE Notify 推播（若有設定 token），若訊息與上一則相同則不發送
-  const notifyMsg = `【車牌通知】\n目前最新: ${lastPlate.latest} (第 ${lastIndex + 1} 個)\n時間: ${lastPlate.timestamp}\n目標: CAT-2533\n距離目標剩餘: ${targetIdx - lastIndex} 個`;
+  const notifyMsg = `【車牌通知】\n目前最新: ${lastPlate.latest} (第 ${lastIndex + 1} 個)\n時間: ${lastPlate.timestamp}\n目標: CAT-8888\n距離目標剩餘: ${targetIdx - lastIndex} 個`;
   const lastMsgPath = 'result/line_last_message.txt';
   let lastMsg = '';
   if (fs.existsSync(lastMsgPath)) {

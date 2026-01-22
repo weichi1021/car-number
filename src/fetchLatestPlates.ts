@@ -231,15 +231,15 @@ async function fetchLatestPlates() {
       }
       fs.writeFileSync(filePath, JSON.stringify(plateList, null, 2), 'utf-8');
 
-      // === 計算距離 CAT-2533 還有多少個 ===
+      // === 計算距離 CAT-8888 還有多少個 ===
       try {
         const notfoundPlates = JSON.parse(fs.readFileSync('notfound/notfound-all.json', 'utf-8'));
         // 找到最新車牌在 notfound/notfound-all.json 的 index
         lastIndex = notfoundPlates.indexOf(lastPlate);
-        targetIdx = notfoundPlates.indexOf('CAT-2533');
+        targetIdx = notfoundPlates.indexOf('CAT-8888');
         if (lastIndex !== -1 && targetIdx !== -1) {
           console.log(`目前最新: ${lastPlate} (第 ${lastIndex + 1} 個)，時間: ${now}`);
-          console.log(`目標: CAT-2533，距離目標剩餘: ${targetIdx - lastIndex} 個`);
+          console.log(`目標: CAT-8888，距離目標剩餘: ${targetIdx - lastIndex} 個`);
         } else {
           console.log('最新車牌號不在有效清單內，無法計算距離');
         }

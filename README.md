@@ -69,7 +69,7 @@ npx ts-node src/fetchLatestPlates.ts
 
 ### 4. 計算差距與推播 LINE
 
-- 比較最新車牌與目標（如 CAT-2533）距離，並推播 LINE：
+- 比較最新車牌與目標（如 CAT-8888）距離，並推播 LINE：
 ```bash
 npx ts-node src/scheduleSendLineNotify.ts
 ```

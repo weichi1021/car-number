@@ -20,7 +20,7 @@ interface OcrResponse {
  * @throws 當 OCR API 回傳結果不可信或發生錯誤時拋出例外
  */
 export async function recognizeCaptcha(inputPath: string, outputPath: string): Promise<string> {
-  const OCR_API_URL = process.env.OCR_API_URL || 'http://127.0.0.1:2533/ocr';
+  const OCR_API_URL = process.env.OCR_API_URL || 'http://127.0.0.1:8888/ocr';
   const MIN_CONFIDENCE_THRESHOLD = parseFloat(process.env.OCR_MIN_CONFIDENCE || '0.7');
   const EXPECTED_LENGTH = 4; // 驗證碼固定為 4 個字元
 

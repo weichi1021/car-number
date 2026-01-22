@@ -54,7 +54,7 @@ async function main() {
   logMem('queryPlate:main:start');
   // const plates = generatePlateNumbers();
   const plates = [
-    'CAT-2533',
+    'CAT-8888',
     'CAT-1036',
     'CAT-6310',
     'CAT-3318',
