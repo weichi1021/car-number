@@ -82,28 +82,12 @@ npx ts-node src/scheduleSendLineNotify.ts
 ```
 - 通知內容與上一則相同則不重複推播，訊息記錄於 `result/line_last_message.txt`。
 
-### 5. 記憶體監控
-
-```bash
-npx ts-node scripts/monitor-memory.ts 10
-```
-- 每 10 秒記錄一次記憶體狀態，支援自訂間隔。
-
 ---
 
 ## CAPTCHA 與自動辨識政策
 
 - 預設流程：人工輸入（截圖後手動輸入）。
 - 若啟用 `recognizeCaptcha` 自動辨識，請參考 [src/utils/recognizeCaptcha.ts](src/utils/recognizeCaptcha.ts) 並在 PR 說明辨識率、錯誤處理與合法性。
-
----
-
-## 記憶體優化建議
-
-- 共用 Puppeteer browser 實例，定期重啟（每 50 次）。
-- 每次查詢後關閉 page。
-- 建議查詢間隔調整為 2-5 分鐘，避免暴力查詢。
-- 詳細優化方案請參考 [docs/memory-optimization.md](docs/memory-optimization.md)。
 
 ---
 
